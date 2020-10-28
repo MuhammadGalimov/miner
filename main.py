@@ -8,17 +8,16 @@ class Cell(pygame.sprite.Sprite):
         self.image = pygame.image.load(spr).convert_alpha()
         self.rect = self.image.get_rect(center=center)
 
+        self.states = {'cell': 1, 'empty': 0, 'flag': 0}
         self.isBombed = isBombed
-        self.isOpened = False
-        self.isFlagged = False
-        self.numberOfBombs = 0
 
-    def update(self):
-        if self.isFlagged:
-            self.image = pygame.image.load(consts.spr_flag).convert_alpha()
+    def click_empty(self):
+        self.states.update({'cell': 0, 'empty': 1, 'flag': 0})
+        self.image = pygame.image.load(consts.spr_empty).convert_alpha()
 
-        if self.isOpened:
-            self.image = pygame.image.load(consts.spr_empty).convert_alpha()
+    def click_flag(self):
+        self.states.update({'cell': 0, 'empty': 0, 'flag': 1})
+        self.image = pygame.image.load(consts.spr_flag).convert_alpha()
 
 
 class Board:
