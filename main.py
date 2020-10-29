@@ -37,6 +37,7 @@ class Board:
         self.numberOfBombs = bombs
 
         self.board = [[Cell(spr, (i*40, j*40)) for i in range(1, self.size+1)] for j in range(1, self.size+1)]
+        self.neighbors = [[0 for i in range(self.size)] for j in range(self.size)]
 
         self.sbombs = 0
         while self.sbombs < self.numberOfBombs:
@@ -47,15 +48,33 @@ class Board:
                 self.board[i][j].set_bomb()
                 self.sbombs += 1
 
+        self.dop_cell = Cell(consts.spr_cell, (0, 0))
+        self.copy_board = self.board.copy()
+
+        self.copy_board = [[self.dop_cell] + l + [self.dop_cell] for l in self.copy_board]
+        self.copy_board = [[self.dop_cell] * len(self.copy_board[1])] + self.copy_board \
+                        + [[self.dop_cell] * len(self.copy_board[1])]
+
+        print(len(self.copy_board[0]))
+        print(len(self.copy_board))
+
+        self.nei = [[-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]]
+
+        for row in range(1, self.size+1):
+            for col in range(1, self.size+1):
+                self.neighbors[row-1][col-1] = sum([int(self.copy_board[row+i[0]][col+i[1]].isBombed) for i in self.nei])
+
+        print(self.neighbors)
+
     def update(self, surface):
         for i in range(self.size):
             for j in range(self.size):
                 surface.blit(self.board[i][j].image, self.board[i][j].rect)
 
     def check(self):
-        for i in self.board:
-            for j in i:
-                j.click_left(1)
+        for i in range(self.size):
+            for j in range(self.size):
+                self.board[i][j].click_left(self.neighbors[i][j])
 
 
 pygame.init()
