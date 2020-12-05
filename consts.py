@@ -1,6 +1,9 @@
 FPS = 60
-W = 500
-H = 500
+W = 480
+H = 600
+
+w_top = 40
+h_left = 40
 
 spr_flag = './images/flag_sprite.png'
 spr_cell = './images/cell_sprite.png'

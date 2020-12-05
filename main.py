@@ -8,7 +8,7 @@ class Cell(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.center = center
         self.image = pygame.image.load(spr).convert_alpha()
-        self.rect = self.image.get_rect(center=self.center)
+        self.rect = self.image.get_rect(topleft=self.center)
 
         self.states = {'cell': 1, 'empty': 0, 'flag': 0}
         self.isBombed = False
@@ -32,14 +32,15 @@ class Cell(pygame.sprite.Sprite):
 
 
 class Board:
-    def __init__(self, spr, size, bombs):
+    def __init__(self, size, bombs):
         self.size = size
         self.numberOfBombs = bombs
 
-        self.board = [[Cell(spr, (i*40, j*40)) for i in range(1, self.size+1)] for j in range(1, self.size+1)]
+        self.board = [[Cell(consts.spr_cell, (i*40, j*40)) for i in range(1, self.size+1)]
+                      for j in range(1, self.size+1)]
         self.neighbors = [[0 for i in range(self.size)] for j in range(self.size)]
 
-        self.sbombs = 0
+        self.sbombs = 0 # setted bombs
         while self.sbombs < self.numberOfBombs:
             i = random.choice(range(self.size))
             j = random.choice(range(self.size))
@@ -55,16 +56,11 @@ class Board:
         self.copy_board = [[self.dop_cell] * len(self.copy_board[1])] + self.copy_board \
                         + [[self.dop_cell] * len(self.copy_board[1])]
 
-        print(len(self.copy_board[0]))
-        print(len(self.copy_board))
-
         self.nei = [[-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]]
 
         for row in range(1, self.size+1):
             for col in range(1, self.size+1):
                 self.neighbors[row-1][col-1] = sum([int(self.copy_board[row+i[0]][col+i[1]].isBombed) for i in self.nei])
-
-        print(self.neighbors)
 
     def update(self, surface):
         for i in range(self.size):
@@ -76,24 +72,45 @@ class Board:
             for j in range(self.size):
                 self.board[i][j].click_left(self.neighbors[i][j])
 
+    def show_bombs(self):
+        pass
 
-pygame.init()
-sc = pygame.display.set_mode((consts.W, consts.H))
-clock = pygame.time.Clock()
+    def left_click(self, position):
+        pass
 
-board = Board(consts.spr_cell, 10, 10)
+    def right_click(self, position):
+        pass
 
-pygame.display.update()
 
-board.check()
+def main():
+    pygame.init()
+    sc = pygame.display.set_mode((consts.W, consts.H))
+    clock = pygame.time.Clock()
 
-while True:
-    clock.tick(consts.FPS)
-
-    for item in pygame.event.get():
-        if item.type == pygame.QUIT:
-            exit()
-
-    board.update(sc)
+    board = Board(10, 20)
 
     pygame.display.update()
+
+    board.check()
+
+    while True:
+        clock.tick(consts.FPS)
+
+        for item in pygame.event.get():
+            if item.type == pygame.QUIT:
+                exit()
+
+            if item.type == pygame.MOUSEBUTTONDOWN:
+                if item.button == 1:
+                    board.left_click(item.pos)
+
+                if item.button == 3:
+                    board.right_click(item.pos)
+
+        board.update(sc)
+
+        pygame.display.update()
+
+
+if __name__ == '__main__':
+    main()
