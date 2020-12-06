@@ -57,34 +57,40 @@ class Board:
         self.board = [[Cell(consts.spr_cell, (i*self.cellSize, j*self.cellSize)) for i in range(1, self.size+1)]
                       for j in range(1, self.size+1)]
         self.neighbors = [[0 for i in range(self.size)] for j in range(self.size)]
+        self.copy_board = []
+        self.nei = [[-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]]
 
+        self.openCell = []  # спиоск ячеек на открытие
+        self.foundBombs = 0  # количество бомб помеченных флажком
+
+        self.dop_cell = Cell(consts.spr_cell, (0, 0))
+        self.dop_cell.callable = False
+        self.firstClick = False
+
+    def setting_bombs(self, cell):
         # устанавливаем бомбы
-        self.sbombs = 0 # setted bombs
-        while self.sbombs < self.numberOfBombs:
+        sbombs = 0  # количество установленных бомб
+
+        while sbombs < self.numberOfBombs:
             i = random.choice(range(self.size))
             j = random.choice(range(self.size))
 
-            if self.board[i][j].isBombed is False:
+            if self.board[i][j].isBombed is False and i != cell[0] and j != cell[1]:
                 self.board[i][j].set_bomb()
-                self.sbombs += 1
+                sbombs += 1
 
+    def count_neig(self):
         # считаем для каждого cell количетсво соседей с бомбами
-        self.dop_cell = Cell(consts.spr_cell, (0, 0))
-        self.dop_cell.callable = False
         self.copy_board = self.board.copy()
 
         self.copy_board = [[self.dop_cell] + l + [self.dop_cell] for l in self.copy_board]
         self.copy_board = [[self.dop_cell] * len(self.copy_board[1])] + self.copy_board \
-            + [[self.dop_cell] * len(self.copy_board[1])]
+                          + [[self.dop_cell] * len(self.copy_board[1])]
 
-        self.nei = [[-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]]
-
-        for row in range(1, self.size+1):
-            for col in range(1, self.size+1):
-                self.neighbors[row-1][col-1] = sum([int(self.copy_board[row+i[0]][col+i[1]].isBombed)
-                                                    for i in self.nei])
-
-        self.openCell = []
+        for row in range(1, self.size + 1):
+            for col in range(1, self.size + 1):
+                self.neighbors[row - 1][col - 1] = sum([int(self.copy_board[row + i[0]][col + i[1]].isBombed)
+                                                        for i in self.nei])
 
     def update(self, surface):
         for i in range(self.size):
@@ -116,6 +122,10 @@ class Board:
         cell = self.get_cell(position)
         if cell:
             self.board[cell[0]][cell[1]].click_right()
+            if self.board[cell[0]][cell[1]].isBombed:
+                self.foundBombs += 1
+            if self.board[cell[0]][cell[1]].isBombed and self.board[cell[0]][cell[1]].states['flag'] == 1:
+                self.foundBombs -= 1
 
     # сюда приходят только ячейки без бомбы
     def addCellsToOpen(self, cell):
@@ -137,6 +147,12 @@ class Board:
         cell = self.get_cell(position)
 
         if cell:
+            if not self.firstClick:
+                self.setting_bombs(cell)
+                self.count_neig()
+                self.firstClick = True
+                self.show_bombs()  # убрать
+
             if not self.board[cell[0]][cell[1]].isBombed:
                 self.addCellsToOpen(cell)
             else:
