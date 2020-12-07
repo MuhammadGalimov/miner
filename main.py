@@ -1,6 +1,7 @@
 import pygame
 import consts
 import random
+import time
 
 
 class Cell(pygame.sprite.Sprite):
@@ -45,6 +46,9 @@ class Board:
         size - размер игрового поля
         bombs - количество бомб
         """
+        self.game_over = False
+        self.win = False
+
         self.size = size
         self.numberOfBombs = bombs
 
@@ -62,10 +66,13 @@ class Board:
 
         self.openCell = []  # спиоск ячеек на открытие
         self.foundBombs = 0  # количество бомб помеченных флажком
+        self.numberOfFlags = 0  # количество ячеек помеченных флажком
 
         self.dop_cell = Cell(consts.spr_cell, (0, 0))
         self.dop_cell.callable = False
         self.firstClick = False
+        self.sec = 0
+        self.end_time = 0
 
     def setting_bombs(self, cell):
         # устанавливаем бомбы
@@ -92,20 +99,46 @@ class Board:
                 self.neighbors[row - 1][col - 1] = sum([int(self.copy_board[row + i[0]][col + i[1]].isBombed)
                                                         for i in self.nei])
 
-    def update(self, surface):
+    def update(self, surface, font):
+        if not self.firstClick:
+            t = 0
+        else:
+            t = time.time() - self.sec
+
+        if self.win or self.game_over:
+            t = self.end_time - self.sec
+
         for i in range(self.size):
             for j in range(self.size):
                 surface.blit(self.board[i][j].image, self.board[i][j].rect)
 
-    def check(self):
-        for i in range(self.size):
-            for j in range(self.size):
-                self.board[i][j].click_left(self.neighbors[i][j])
+        text_b = font.render('Bombs: {}'.format(self.numberOfBombs - self.numberOfFlags), True, (0, 180, 0))
+        text_go = font.render('Game over', True, (180, 0, 0))
+        text_gj = font.render('Good job!', True, (0, 180, 0))
+        text_time = font.render('{} sec'.format(int(t)), True, (0, 180, 0))
+        surface.blit(text_b, text_b.get_rect(topleft=(self.left_frame, self.top_frame + self.cellSize * self.size +
+                                                      30)))
+
+        surface.blit(text_time, text_time.get_rect(topright=(consts.W - self.left_frame, self.top_frame + self.cellSize
+                                                             * self.size + 30)))
+
+        if self.win:
+            surface.blit(text_gj, text_gj.get_rect(topleft=(self.left_frame, self.top_frame +
+                                                            self.cellSize * self.size + 80)))
+
+        if self.game_over:
+            surface.blit(text_go, text_go.get_rect(topleft=(self.left_frame, self.top_frame +
+                                                            self.cellSize * self.size + 80)))
+
+    def check_flag(self):
+        if self.foundBombs == self.numberOfBombs:
+            self.win = True
+            self.end_time = time.time()
 
     def show_bombs(self):
         for i in range(self.size):
             for j in range(self.size):
-                if self.board[i][j].isBombed:
+                if self.board[i][j].isBombed and self.board[i][j].states['flag'] == 0:
                     self.board[i][j].click_left(self.neighbors[i][j])
 
     def get_cell(self, position):
@@ -119,12 +152,26 @@ class Board:
             return False
 
     def right_click(self, position):
+        self.check_flag()
+
+        if self.win or self.game_over:
+            return 0
+
         cell = self.get_cell(position)
         if cell:
-            self.board[cell[0]][cell[1]].click_right()
-            if self.board[cell[0]][cell[1]].isBombed:
+            if not self.firstClick:
+                self.first_click_function(cell)
+
+            if self.board[cell[0]][cell[1]].states['empty'] == 0:
+                if self.board[cell[0]][cell[1]].states['flag'] == 0:
+                    self.numberOfFlags += 1
+                if self.board[cell[0]][cell[1]].states['flag'] == 1:
+                    self.numberOfFlags -= 1
+                self.board[cell[0]][cell[1]].click_right()
+
+            if self.board[cell[0]][cell[1]].states['flag'] == 0 and self.board[cell[0]][cell[1]].isBombed:
                 self.foundBombs += 1
-            if self.board[cell[0]][cell[1]].isBombed and self.board[cell[0]][cell[1]].states['flag'] == 1:
+            if self.board[cell[0]][cell[1]].states['flag'] == 1 and self.board[cell[0]][cell[1]].isBombed:
                 self.foundBombs -= 1
 
     # сюда приходят только ячейки без бомбы
@@ -143,20 +190,30 @@ class Board:
                     self.copy_board[cell[0] + 1 + n[0]][cell[1] + 1 + n[1]].callable = False
                     self.addCellsToOpen((cell[0] + n[0], cell[1] + n[1]))
 
+    def first_click_function(self, cell):
+        self.setting_bombs(cell)
+        self.count_neig()
+        self.firstClick = True
+        self.sec = time.time()
+        # self.show_bombs()  # убрать
+
     def left_click(self, position):
+        if self.win or self.game_over:
+            return 0
+
         cell = self.get_cell(position)
 
         if cell:
             if not self.firstClick:
-                self.setting_bombs(cell)
-                self.count_neig()
-                self.firstClick = True
-                self.show_bombs()  # убрать
+                self.first_click_function(cell)
 
             if not self.board[cell[0]][cell[1]].isBombed:
                 self.addCellsToOpen(cell)
             else:
-                self.openCell.append(cell)
+                self.game_over = True
+                self.end_time = time.time()
+                # self.openCell.append(cell)
+                self.show_bombs()
 
             for item in self.openCell:
                 self.board[item[0]][item[1]].click_left(self.neighbors[item[0]][item[1]])
@@ -167,13 +224,13 @@ class Board:
 def main():
     pygame.init()
     sc = pygame.display.set_mode((consts.W, consts.H))
+    pygame.display.set_caption("Сапер")
     clock = pygame.time.Clock()
+    font = pygame.font.Font(None, 50)
 
-    board = Board(10, 20)
+    board = Board(10, 15)
 
     pygame.display.update()
-
-    board.show_bombs()
 
     while True:
         clock.tick(consts.FPS)
@@ -190,7 +247,7 @@ def main():
                     board.right_click(item.pos)
 
         sc.fill((255, 250, 250))
-        board.update(sc)
+        board.update(sc, font)
 
         pygame.display.update()
 
